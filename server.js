@@ -12,7 +12,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { emArquivos, emPostgres } = require('./armazenamento');
+const { emArquivos, emPostgres, urlSegura } = require('./armazenamento');
 
 const NA_NUVEM = !!process.env.PORT;
 const PORTA = +process.env.PORT || 5173;
@@ -265,7 +265,12 @@ function tratar(req, res) {
 async function iniciar() {
   if (process.env.DATABASE_URL) {
     const { Pool } = require('pg');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: +process.env.PG_POOL_MAX || 5 });
+    const url = urlSegura(process.env.DATABASE_URL);
+    if (!/^postgres(ql)?:\/\/[^\s"']+$/.test(url)) {
+      // nunca imprime o valor: ele contém a senha do banco
+      throw new Error('DATABASE_URL inválida. Ela deve começar com postgresql:// e não ter espaços nem aspas.');
+    }
+    const pool = new Pool({ connectionString: url, max: +process.env.PG_POOL_MAX || 5 });
     pool.on('error', (e) => console.error('Banco:', e.message));
     store = await emPostgres((sql, params) => pool.query(sql, params));
   } else {
@@ -280,6 +285,7 @@ async function iniciar() {
 }
 
 iniciar().catch((e) => {
-  console.error('Não consegui iniciar:', e.message);
+  // a mensagem do pg pode citar o endereço do banco; esconde qualquer connection string
+  console.error('Não consegui iniciar:', String(e.message).replace(/postgres(ql)?:\/\/\S+/g, '<DATABASE_URL>'));
   process.exit(1);
 });

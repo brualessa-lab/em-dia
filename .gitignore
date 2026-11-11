@@ -3,4 +3,6 @@ dados/
 
 node_modules/
 .env
+.env.*
+.neon
 *.tmp

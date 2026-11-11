@@ -8,7 +8,7 @@
 // Pode rodar mais de uma vez: conta que já existe no banco é pulada (nada é sobrescrito).
 const path = require('path');
 const { Pool } = require('pg');
-const { emArquivos, emPostgres } = require('./armazenamento');
+const { emArquivos, emPostgres, urlSegura } = require('./armazenamento');
 
 (async () => {
   if (!process.env.DATABASE_URL) {
@@ -16,7 +16,7 @@ const { emArquivos, emPostgres } = require('./armazenamento');
     process.exit(1);
   }
   const local = emArquivos(path.join(__dirname, 'dados'));
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 2 });
+  const pool = new Pool({ connectionString: urlSegura(process.env.DATABASE_URL), max: 2 });
   const nuvem = await emPostgres((sql, params) => pool.query(sql, params));
 
   const usuarios = await local.todosUsuarios();

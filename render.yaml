@@ -4,6 +4,7 @@ services:
     name: em-dia
     runtime: node
     plan: free
+    region: oregon             # região em que o serviço foi criado (o Render não deixa trocar depois)
     buildCommand: npm install --omit=dev
     startCommand: node server.js
     healthCheckPath: /api/saude

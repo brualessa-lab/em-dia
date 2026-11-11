@@ -10,27 +10,34 @@ node server.js
 
 Abra http://localhost:5173. Os dados ficam na pasta `dados/`, que nunca vai para o GitHub.
 
+Para rodar no PC usando o banco da Neon (os mesmos dados do site na internet):
+
+```
+node --env-file=.env.local server.js
+```
+
 ## Publicar na internet (grátis)
 
 O site roda no **Render** e os dados ficam num banco Postgres do **Neon**.
 
-### 1. Banco de dados (Neon)
+### 1. Banco de dados (Neon) — feito
 
-1. Crie uma conta em https://neon.tech (pode entrar com o GitHub).
-2. Crie um projeto. Na região, escolha a mais próxima do Brasil.
-3. Copie a **connection string**. Ela começa com `postgresql://` e termina com `?sslmode=require`.
-   Guarde com cuidado: quem tiver essa string acessa os dados.
+O projeto `em-dia` já existe na Neon, na região `aws-us-east-1` (Virgínia). O site no Render roda em Oregon.
+Esta pasta está ligada a ele pelo arquivo `.neon`, e a connection string fica em `.env.local`.
+Os dois arquivos ficam só no PC (o git ignora).
 
-### 2. Levar seus dados do PC para o banco (opcional)
+Guarde a connection string com cuidado: quem tiver essa string acessa os dados.
+Para ver de novo: abra `.env.local` e copie o valor de `DATABASE_URL`, ou rode `neon connection-string`.
 
-No PowerShell, dentro de `D:\DuoFinn`:
+### 2. Levar seus dados do PC para o banco — feito
+
+Se criar contas novas no PC e quiser levá-las também, dentro de `D:\DuoFinn`:
 
 ```
-$env:DATABASE_URL = "cole aqui a connection string"
-node importar.js
+node --env-file=.env.local importar.js
 ```
 
-As contas continuam com a mesma senha. Pode rodar de novo sem medo: conta que já existe no banco é pulada.
+As contas continuam com a mesma senha. Conta que já existe no banco é pulada.
 
 ### 3. Site (Render)
 

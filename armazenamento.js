@@ -99,4 +99,13 @@ async function emPostgres(query) {
   };
 }
 
-module.exports = { emArquivos, emPostgres };
+// A Neon entrega a URL com sslmode=require. Hoje o pacote pg já trata isso como verify-full
+// (confere o certificado do servidor); a próxima versão vai afrouxar. Fixamos verify-full.
+// Também perdoa erros comuns ao colar: espaços, "DATABASE_URL=" na frente e aspas em volta.
+function urlSegura(url) {
+  let u = String(url || '').trim().replace(/^DATABASE_URL\s*=\s*/, '').trim();
+  if (/^(["']).*\1$/.test(u)) u = u.slice(1, -1).trim();
+  return u.replace(/([?&])sslmode=(prefer|require|verify-ca)(?=&|$)/, '$1sslmode=verify-full');
+}
+
+module.exports = { emArquivos, emPostgres, urlSegura };
