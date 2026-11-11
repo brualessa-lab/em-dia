@@ -19,6 +19,7 @@ function emArquivos(dir) {
   fs.mkdirSync(dir, { recursive: true });
   const ARQ_USUARIOS = path.join(dir, 'usuarios.json');
   const arqDados = (u) => path.join(dir, `u_${u}.json`);
+  const ARQ_PUSH = path.join(dir, 'push.json');
   return {
     tipo: 'arquivos',
     async usuario(u) { return lerJSON(ARQ_USUARIOS, {})[u] || null; },
@@ -44,6 +45,30 @@ function emArquivos(dir) {
       fs.writeFileSync(arq, s);
       return s;
     },
+    async config(chave, gerar) {
+      const arq = path.join(dir, 'config.json');
+      const c = lerJSON(arq, {});
+      if (c[chave] == null) { c[chave] = gerar(); gravarJSON(arq, c); }
+      return c[chave];
+    },
+    // inscrições de notificação (uma por aparelho), chave = endpoint
+    async salvarInscricao(u, sub) {
+      const todas = lerJSON(ARQ_PUSH, {});
+      todas[sub.endpoint] = { usuario: u, sub, avisadoEm: todas[sub.endpoint]?.avisadoEm || '' };
+      gravarJSON(ARQ_PUSH, todas);
+    },
+    async removerInscricao(endpoint) {
+      const todas = lerJSON(ARQ_PUSH, {});
+      delete todas[endpoint];
+      gravarJSON(ARQ_PUSH, todas);
+    },
+    async inscricoes(u) {
+      return Object.values(lerJSON(ARQ_PUSH, {})).filter((x) => !u || x.usuario === u);
+    },
+    async marcarAvisado(endpoint, dia) {
+      const todas = lerJSON(ARQ_PUSH, {});
+      if (todas[endpoint]) { todas[endpoint].avisadoEm = dia; gravarJSON(ARQ_PUSH, todas); }
+    },
   };
 }
 
@@ -60,6 +85,12 @@ async function emPostgres(query) {
   await query(`CREATE TABLE IF NOT EXISTS emdia_config (
     chave text PRIMARY KEY,
     valor text NOT NULL)`);
+  await query(`CREATE TABLE IF NOT EXISTS emdia_push (
+    endpoint   text PRIMARY KEY,
+    usuario    text NOT NULL REFERENCES emdia_usuarios(usuario) ON DELETE CASCADE,
+    inscricao  jsonb NOT NULL,
+    avisado_em text NOT NULL DEFAULT '',
+    criado_em  timestamptz NOT NULL DEFAULT now())`);
 
   return {
     tipo: 'postgres',
@@ -95,6 +126,31 @@ async function emPostgres(query) {
         ['segredo', crypto.randomBytes(32).toString('hex')]);
       const r = await query('SELECT valor FROM emdia_config WHERE chave = $1', ['segredo']);
       return r.rows[0].valor;
+    },
+    async config(chave, gerar) {
+      // guarda como texto JSON; se dois servidores gerarem ao mesmo tempo, vale o primeiro
+      await query('INSERT INTO emdia_config (chave, valor) VALUES ($1, $2) ON CONFLICT (chave) DO NOTHING',
+        [chave, JSON.stringify(gerar())]);
+      const r = await query('SELECT valor FROM emdia_config WHERE chave = $1', [chave]);
+      return JSON.parse(r.rows[0].valor);
+    },
+    async salvarInscricao(u, sub) {
+      await query(
+        `INSERT INTO emdia_push (endpoint, usuario, inscricao) VALUES ($1, $2, $3)
+         ON CONFLICT (endpoint) DO UPDATE SET usuario = EXCLUDED.usuario, inscricao = EXCLUDED.inscricao`,
+        [sub.endpoint, u, JSON.stringify(sub)]);
+    },
+    async removerInscricao(endpoint) {
+      await query('DELETE FROM emdia_push WHERE endpoint = $1', [endpoint]);
+    },
+    async inscricoes(u) {
+      const r = u
+        ? await query('SELECT usuario, inscricao, avisado_em FROM emdia_push WHERE usuario = $1', [u])
+        : await query('SELECT usuario, inscricao, avisado_em FROM emdia_push', []);
+      return r.rows.map((x) => ({ usuario: x.usuario, sub: x.inscricao, avisadoEm: x.avisado_em }));
+    },
+    async marcarAvisado(endpoint, dia) {
+      await query('UPDATE emdia_push SET avisado_em = $2 WHERE endpoint = $1', [endpoint, dia]);
     },
   };
 }

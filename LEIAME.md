@@ -55,7 +55,18 @@ No plano grátis, o site "dorme" depois de 15 minutos sem uso. A primeira abertu
 - **Android (Chrome):** abra o endereço, menu ⋮ → **Instalar app** (ou "Adicionar à tela inicial").
 - **iPhone (Safari):** abra o endereço, botão Compartilhar → **Adicionar à Tela de Início**.
 
-Depois, em **Ajustes → Avisos no aparelho**, toque em **Ativar avisos**.
+Depois, em **Ajustes → Avisos no aparelho**, toque em **Ativar avisos**. No iPhone, ative por dentro do app instalado (o Safari comum não recebe avisos com o app fechado).
+
+## Avisos com o app fechado
+
+Ao ativar os avisos, o aparelho se inscreve no serviço de notificações dele (Google, Apple, Mozilla ou Microsoft) e o Em Dia guarda essa inscrição na tabela `emdia_push`.
+
+Toda manhã, às 8h30 de Brasília, o GitHub Actions (`.github/workflows/avisos.yml`) chama `POST /api/avisos/rodar`. O servidor confere as contas de cada pessoa e, se houver alguma vencida ou dentro da janela de aviso, manda uma notificação para os aparelhos dela. Cada aparelho recebe no máximo um aviso por dia, e nada sai entre 21h e 8h.
+
+- Para rodar na hora: no GitHub, aba **Actions → Avisos de vencimento → Run workflow**.
+- O botão **Enviar aviso de teste** (em Ajustes) confere se o aparelho está recebendo.
+- As chaves VAPID são criadas sozinhas e guardadas no banco (`emdia_config`). Se forem apagadas, os aparelhos precisam ativar os avisos de novo.
+- O GitHub pausa agendamentos de repositórios sem nenhum commit por 60 dias. Se os avisos pararem, reative em **Actions**.
 
 ## Atualizar o site
 
@@ -69,3 +80,4 @@ Cada `git push` para o GitHub faz o Render publicar a versão nova sozinho.
 | `CODIGO_CONVITE` | Exige esse código para criar conta.                             |
 | `SEGREDO`        | Chave do login. Opcional: sem ela, é gerada e guardada no banco. |
 | `PORT`, `HOST`   | Porta e endereço. O Render define `PORT` sozinho.               |
+| `AVISOS_CONTATO` | Contato enviado aos serviços de push. Opcional.                 |

@@ -8,11 +8,13 @@
 //   CODIGO_CONVITE   se definido, só cria conta quem souber esse código
 //   SEGREDO          chave que assina o cookie de login (sem ela, é gerada e guardada no banco)
 //   PORT / HOST      porta e endereço (o Render define PORT sozinho)
+//   AVISOS_CONTATO   contato enviado aos serviços de push (padrão: endereço do repositório)
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { emArquivos, emPostgres, urlSegura } = require('./armazenamento');
+const { criarAvisos } = require('./avisos');
 
 const NA_NUVEM = !!process.env.PORT;
 const PORTA = +process.env.PORT || 5173;
@@ -42,6 +44,8 @@ const TIPOS = {
 
 let store;    // armazenamento (arquivos ou Postgres)
 let SEGREDO;  // chave do cookie
+let avisos;   // notificações push (avisos.js)
+const MAX_APARELHOS = 10;
 
 // ---------- senha ----------
 function gerarHash(senha, sal = crypto.randomBytes(16).toString('hex')) {
@@ -162,7 +166,11 @@ async function api(req, res, rota) {
   if (metodo !== 'GET' && !mesmaOrigem(req)) return enviar(req, res, 403, { erro: 'Origem não permitida' });
 
   if (metodo === 'GET' && rota === '/api/saude') return enviar(req, res, 200, { ok: true });
-  if (metodo === 'GET' && rota === '/api/config') return enviar(req, res, 200, { convite: !!CONVITE });
+  if (metodo === 'GET' && rota === '/api/config') return enviar(req, res, 200, { convite: !!CONVITE, push: avisos.chavePublica() });
+
+  // -- conferência diária dos vencimentos (chamada pelo GitHub Actions). Não precisa de login:
+  //    cada aparelho recebe no máximo um aviso por dia, então chamar a mais não faz mal.
+  if (metodo === 'POST' && rota === '/api/avisos/rodar') return enviar(req, res, 200, await avisos.rodar());
 
   // -- criar conta / entrar
   if (metodo === 'POST' && (rota === '/api/registrar' || rota === '/api/entrar')) {
@@ -215,6 +223,32 @@ async function api(req, res, rota) {
       if (!corpo || typeof corpo !== 'object' || Array.isArray(corpo)) return enviar(req, res, 400, { erro: 'Dados inválidos' });
       await store.salvarDados(usuario, { ...corpo, salvoEm: new Date().toISOString() });
       return enviar(req, res, 200, { ok: true });
+    }
+  }
+
+  // -- avisos com o app fechado
+  if (metodo === 'POST' && rota.startsWith('/api/push/')) {
+    let corpo;
+    try { corpo = await lerCorpo(req); } catch (e) { return enviar(req, res, ...erroCorpo(e)); }
+    if (rota === '/api/push/inscrever') {
+      const sub = avisos.inscricaoValida(corpo.inscricao);
+      if (!sub) return enviar(req, res, 400, { erro: 'Inscrição de aviso inválida' });
+      const minhas = await store.inscricoes(usuario);
+      if (minhas.length >= MAX_APARELHOS && !minhas.some((x) => x.sub.endpoint === sub.endpoint)) {
+        return enviar(req, res, 400, { erro: `Limite de ${MAX_APARELHOS} aparelhos com aviso` });
+      }
+      await store.salvarInscricao(usuario, sub);
+      return enviar(req, res, 200, { ok: true });
+    }
+    if (rota === '/api/push/remover') {
+      const minhas = await store.inscricoes(usuario);
+      if (minhas.some((x) => x.sub.endpoint === corpo.endpoint)) await store.removerInscricao(corpo.endpoint);
+      return enviar(req, res, 200, { ok: true });
+    }
+    if (rota === '/api/push/teste') {
+      if (bloqueado('teste:' + usuario)) return enviar(req, res, 429, { erro: 'Espere alguns minutos para testar de novo' });
+      contar('teste:' + usuario, 5, 600e3, 600e3);
+      return enviar(req, res, 200, await avisos.teste(usuario));
     }
   }
 
@@ -277,6 +311,10 @@ async function iniciar() {
     store = emArquivos(path.join(ROOT, 'dados'));
   }
   SEGREDO = process.env.SEGREDO || await store.segredo();
+  avisos = criarAvisos(store, { contato: process.env.AVISOS_CONTATO || 'https://github.com/brualessa-lab/em-dia' });
+  await avisos.preparar();
+  // enquanto o servidor estiver acordado, confere de hora em hora (no máximo 1 aviso por dia)
+  setInterval(() => avisos.rodar().catch((e) => console.error('Avisos:', e.message)), 3600e3).unref();
   http.createServer(tratar).listen(PORTA, HOST, () => {
     console.log(`Em Dia em http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORTA}`);
     console.log(`  dados: ${store.tipo === 'postgres' ? 'banco Postgres' : 'pasta ./dados'}`);

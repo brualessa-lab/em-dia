@@ -137,6 +137,8 @@ function mostrarLogin(msg = '') {
 }
 
 let pedeConvite = false; // o servidor diz se o cadastro exige código de convite
+let chavePush = '';       // chave pública do servidor para os avisos com o app fechado
+let estadoPush = '';      // 'ligado' | 'instalar' | 'sem-suporte' | 'erro'
 
 function setModoLogin(m) {
   modoLogin = m;
@@ -192,9 +194,11 @@ async function entrouComo(u, modoNovo = null) {
   setStatus('salvo');
   render();
   avisarWindows();
+  if ('Notification' in window && Notification.permission === 'granted') inscreverPush().then(render);
 }
 
 async function sair() {
+  await cancelarPush(); // este aparelho para de receber os avisos dessa conta
   try { await api('/api/sair', { method: 'POST' }); } catch {}
   modoLogin = 'entrar';
   mostrarLogin();
@@ -789,8 +793,15 @@ function renderRenda() {
     denied: '<span class="erro">Os avisos foram bloqueados. Libere nas permissões do site (ícone ao lado do endereço).</span>',
     default: '<span class="muted">Avisos ainda não ativados.</span>',
     indisponivel: '<span class="muted">Este navegador não suporta avisos.</span>',
-  }[perm];
+  }[perm] + (ehIOS() && !instalado()
+    ? '<br><span class="muted">No iPhone, para receber avisos com o app fechado, instale o Em Dia (Compartilhar → Adicionar à Tela de Início) e ative os avisos por lá.</span>'
+    : perm !== 'granted' ? '' : {
+      ligado: '<br><span class="ok-msg">📱 Também avisa com o app fechado, toda manhã.</span>',
+      'sem-suporte': '<br><span class="muted">Este navegador só avisa com o Em Dia aberto.</span>',
+      erro: '<br><span class="erro">Não consegui ligar os avisos com o app fechado. Tente de novo mais tarde.</span>',
+    }[estadoPush] || '');
   $('notifBtn').classList.toggle('hidden', perm !== 'default');
+  $('notifTeste').classList.toggle('hidden', estadoPush !== 'ligado');
 }
 
 // mostra/esconde os campos do parceiro enquanto escolhe (só vale depois de Salvar)
@@ -1118,8 +1129,55 @@ async function mostrarNotificacao(titulo, opcoes) {
 async function ativarAvisos() {
   if (!('Notification' in window)) return toast('Este navegador não suporta avisos');
   const r = await Notification.requestPermission();
-  if (r === 'granted') { toast('Avisos ativados'); avisarWindows(); }
+  if (r === 'granted') { await inscreverPush(); toast('Avisos ativados'); avisarWindows(); }
   render();
+}
+
+// ---------- avisos com o app fechado (Web Push) ----------
+// O aparelho se inscreve no serviço de push dele (Google, Apple…) e manda a inscrição ao servidor,
+// que confere os vencimentos toda manhã e avisa mesmo com o Em Dia fechado.
+const temPush = () => 'serviceWorker' in navigator && 'PushManager' in window;
+const ehIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
+const instalado = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+function bytesDaChave(b64) {
+  const s = atob(b64.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (b64.length % 4)) % 4));
+  return Uint8Array.from(s, (c) => c.charCodeAt(0));
+}
+async function inscreverPush() {
+  if (!temPush() || !chavePush) { estadoPush = ehIOS() && !instalado() ? 'instalar' : 'sem-suporte'; return; }
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const opcoes = { userVisibleOnly: true, applicationServerKey: bytesDaChave(chavePush) };
+    let sub = await reg.pushManager.getSubscription();
+    try {
+      if (!sub) sub = await reg.pushManager.subscribe(opcoes);
+    } catch (e) {
+      // inscrição antiga com outra chave: troca
+      if (sub) await sub.unsubscribe();
+      sub = await reg.pushManager.subscribe(opcoes);
+    }
+    await api('/api/push/inscrever', { method: 'POST', body: JSON.stringify({ inscricao: sub.toJSON() }) });
+    estadoPush = 'ligado';
+  } catch (e) {
+    estadoPush = 'erro';
+  }
+}
+async function cancelarPush() {
+  if (!temPush()) return;
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg && await reg.pushManager.getSubscription();
+    if (!sub) return;
+    await api('/api/push/remover', { method: 'POST', body: JSON.stringify({ endpoint: sub.endpoint }) }).catch(() => {});
+    await sub.unsubscribe();
+  } catch {}
+  estadoPush = '';
+}
+async function testarPush() {
+  try {
+    const r = await api('/api/push/teste', { method: 'POST' });
+    toast(r.enviados ? 'Aviso de teste enviado' : 'Nenhum aparelho recebeu. Ative os avisos de novo.');
+  } catch (e) { toast(e.message || 'Não consegui enviar o teste'); }
 }
 
 // confere de novo a cada 30 min (e quando a aba volta a ficar visível)
@@ -1145,6 +1203,7 @@ document.addEventListener('click', (e) => {
     if (a === 'novo-cartao') return formCartao();
     if (a === 'sair') return sair();
     if (a === 'ativar-avisos') return ativarAvisos();
+    if (a === 'testar-push') return testarPush();
     if (a === 'menu-add') { $('addPop').classList.toggle('hidden'); return; }
     if (a === 'sino') { $('bellPop').classList.toggle('hidden'); e.stopPropagation(); return; }
     if (a === 'acerto') {
@@ -1216,7 +1275,9 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 
 (async () => {
   try {
-    pedeConvite = !!(await api('/api/config')).convite;
+    const cfg = await api('/api/config');
+    pedeConvite = !!cfg.convite;
+    chavePush = cfg.push || '';
   } catch {}
   try {
     const eu = await api('/api/eu');
