@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Em Dia</title>
+  <meta name="theme-color" content="#2563eb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Em Dia">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" type="image/png" href="/icones/icone-192.png">
+  <link rel="apple-touch-icon" href="/icones/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div id="login" class="login hidden">
+  <div class="login-card card">
+    <div class="brand">
+      <div class="avatars"><span class="av av-blue logo">✓</span></div>
+      <div><strong>Em Dia</strong><small>Finanças pessoais ou em casal</small></div>
+    </div>
+    <div class="seg-toggle" id="loginTabs">
+      <button type="button" class="on" data-modo="entrar">Entrar</button>
+      <button type="button" data-modo="criar">Criar conta</button>
+    </div>
+    <form id="loginForm" class="form" autocomplete="on">
+      <label>Usuário
+        <input name="usuario" autocomplete="username" required minlength="3" maxlength="30" autocapitalize="none" spellcheck="false">
+      </label>
+      <label>Senha
+        <input name="senha" type="password" autocomplete="current-password" required minlength="6">
+      </label>
+      <label id="confirmaWrap" class="hidden">Confirmar senha
+        <input name="confirma" type="password" autocomplete="new-password" minlength="6">
+      </label>
+      <div id="modoWrap" class="hidden modo-escolha">
+        <span class="lbl-form">Como você vai usar?</span>
+        <div class="modo-cards" id="modoConta">
+          <button type="button" class="on" data-conta="individual"><b>👤 Individual</b><small>Só as suas finanças</small></button>
+          <button type="button" data-conta="casal"><b>👥 Em casal</b><small>Divide as contas da casa</small></button>
+        </div>
+        <small class="muted">Dá para trocar depois em Ajustes.</small>
+      </div>
+      <label id="conviteWrap" class="hidden">Código de convite
+        <input name="convite" autocomplete="off" autocapitalize="none" spellcheck="false">
+        <small class="muted">Peça para quem administra o Em Dia.</small>
+      </label>
+      <p class="erro" id="loginErro"></p>
+      <button class="primary full" id="loginBtn">Entrar</button>
+      <p class="muted center" id="loginDica"></p>
+    </form>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div class="app hidden" id="app">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="avatars"><span class="av av-blue" id="avEu">?</span><span class="av av-pink so-casal" id="avEla">?</span></div>
+      <div><strong>Em Dia</strong><small id="brandSub">Finanças em casal</small></div>
+    </div>
+
+    <nav>
+      <p class="nav-label">Menu</p>
+      <a class="nav-item" href="#" data-view="geral"><span class="ic">▦</span>Visão geral</a>
+      <a class="nav-item" href="#" data-view="despesas"><span class="ic">≡</span>Despesas<span class="nav-badge hidden" id="navBadge"></span></a>
+      <a class="nav-item" href="#" data-view="cartoes"><span class="ic">▭</span>Cartões</a>
+      <p class="nav-label">Ajustes</p>
+      <a class="nav-item" href="#" data-view="renda"><span class="ic">▤</span><span id="navRenda" class="so-pc">Renda e conta</span><span class="so-celular">Ajustes</span></a>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <div class="theme-row">
+        <span>☼ Tema</span>
+        <div class="theme-toggle">
+          <button data-theme-btn="light" title="Claro">☀</button>
+          <button data-theme-btn="dark" title="Escuro">☾</button>
+        </div>
+      </div>
+      <div class="user-row">
+        <span class="av av-blue" id="userAv">?</span>
+        <div class="user-txt">
+          <strong id="userNome"></strong>
+          <small id="userSub"></small>
+        </div>
+        <button class="ghost sm" data-acao="sair" title="Sair">⏻</button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar card">
+      <div class="month-nav">
+        <button id="prevMonth" class="ghost" title="Mês anterior">‹</button>
+        <button id="nextMonth" class="ghost" title="Próximo mês">›</button>
+        <h1 id="monthTitle"></h1>
+        <button class="hoje-btn hidden" id="hojeBtn">Hoje</button>
+      </div>
+      <div class="top-actions">
+        <span id="saveStatus" class="save-status"></span>
+        <div class="pop-wrap">
+          <button class="bell" data-acao="sino" title="Alertas de vencimento">🔔<span class="badge hidden" id="bellBadge"></span></button>
+          <div class="pop bell-pop hidden" id="bellPop"></div>
+        </div>
+        <div class="pop-wrap">
+          <div class="split-btn">
+            <button class="primary btn-add" data-acao="nova-despesa" title="Adicionar despesa">+<span class="so-pc"> Adicionar</span></button>
+            <button class="primary caret-btn" data-acao="menu-add">⌄</button>
+          </div>
+          <div class="pop add-pop hidden" id="addPop">
+            <button data-acao="nova-despesa">💸 Despesa</button>
+            <button data-acao="novo-cartao">💳 Cartão</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ============ VISÃO GERAL ============ -->
+    <section class="view" id="view-geral">
+      <div class="banner hidden" id="boasVindas">
+        <div>
+          <strong>Bem-vindo(a) ao Em Dia 👋</strong>
+          <p>Comece colocando sua renda e depois cadastre as despesas com a data de vencimento. O sino avisa quando alguma estiver perto de vencer.</p>
+        </div>
+        <div class="banner-btns">
+          <button class="outline" data-view="renda">1. Minha renda</button>
+          <button class="primary" data-acao="nova-despesa">2. Cadastrar despesa</button>
+        </div>
+      </div>
+      <div class="banner alerta hidden" id="alertaBanner"></div>
+
+      <div class="grid">
+        <section class="card saldo">
+          <div class="card-head">
+            <h2>Saldo previsto</h2>
+            <div class="illus">👛</div>
+          </div>
+          <div class="saldo-row">
+            <div class="big-money xl" id="saldoValor"></div>
+            <div class="saldo-note">
+              <span class="up" id="saldoPct"></span>
+              <small>valor estimado após pagar todas as contas</small>
+            </div>
+          </div>
+          <div class="seg-bar" id="saldoBar"></div>
+          <div class="seg-legend" id="saldoLegend"></div>
+        </section>
+
+        <section class="card contas">
+          <div class="card-head">
+            <div>
+              <h2>Contas a pagar <span class="muted" id="contasDia"></span></h2>
+              <div class="big-money" id="contasTotal"></div>
+              <small class="muted" id="contasSub"></small>
+            </div>
+            <div class="illus">📅</div>
+          </div>
+          <div class="days" id="daysTabs"></div>
+          <ul class="checklist" id="contasList"></ul>
+        </section>
+
+        <section class="card divisao so-casal">
+          <div class="card-head">
+            <div>
+              <h2>Divisão da casa</h2>
+              <small class="muted">Total das contas</small>
+              <div class="big-money" id="casaTotal"></div>
+            </div>
+            <div class="illus">⚖️</div>
+          </div>
+          <div class="split-labels">
+            <div><small><i class="dot dot-blue"></i>Você paga</small><strong id="vocePaga"></strong></div>
+            <div class="right"><small><span id="elaPagaLbl"></span><i class="dot dot-pink"></i></small><strong id="esposaPaga"></strong></div>
+          </div>
+          <div class="split-bar" id="splitBar"></div>
+          <h3>Quem paga cada conta <small class="muted">· clique para trocar</small></h3>
+          <ul class="rows" id="casaList"></ul>
+          <div class="acerto" id="acerto"></div>
+        </section>
+
+        <section class="card cartoes">
+          <div id="cartoesCard"></div>
+        </section>
+
+        <section class="card moradia">
+          <div class="card-head">
+            <div>
+              <h2>Moradia</h2>
+              <small class="muted">Quanto você gasta pra morar</small>
+              <div class="big-money" id="moradiaValor"></div>
+              <small class="ok" id="moradiaPct"></small>
+            </div>
+            <div class="illus">🏠</div>
+          </div>
+          <div class="seg-toggle so-casal" id="moradiaToggle">
+            <button class="on" data-base="meu">Só meu salário</button>
+            <button data-base="casal">Salário do casal</button>
+          </div>
+          <div class="gauge">
+            <span class="gauge-ref">30%</span>
+            <div class="gauge-track"><div class="gauge-fill" id="gaugeFill"></div><i class="gauge-mark"></i></div>
+            <div class="gauge-scale"><small>0%</small><small>60% do salário</small></div>
+          </div>
+          <h3>O que entra na conta</h3>
+          <div class="items-grid" id="moradiaItens"></div>
+        </section>
+
+        <section class="card proximos">
+          <div class="card-head">
+            <div>
+              <h2>Próximos vencimentos</h2>
+              <small class="muted" id="proxSub"></small>
+            </div>
+            <div class="illus">⏰</div>
+          </div>
+          <div class="prox-list" id="proxList"></div>
+        </section>
+      </div>
+    </section>
+
+    <!-- ============ DESPESAS ============ -->
+    <section class="view hidden" id="view-despesas">
+      <div class="card">
+        <div class="view-head">
+          <div>
+            <h2 class="view-title">Despesas</h2>
+            <small class="muted" id="despSub"></small>
+          </div>
+          <button class="primary rounded" data-acao="nova-despesa">+ Nova despesa</button>
+        </div>
+        <div class="filtros" id="filtros">
+          <button data-filtro="todas" class="on">Todas</button>
+          <button data-filtro="casa" class="so-casal">Da casa</button>
+          <button data-filtro="pessoal" class="so-casal">Só minhas</button>
+          <button data-filtro="abertas">Em aberto no mês</button>
+        </div>
+        <div class="tabela-wrap"><table class="tabela" id="despTabela"></table></div>
+      </div>
+    </section>
+
+    <!-- ============ CARTÕES ============ -->
+    <section class="view hidden" id="view-cartoes">
+      <div class="card">
+        <div class="view-head">
+          <div>
+            <h2 class="view-title">Cartões</h2>
+            <small class="muted">Faturas e limite de cada cartão</small>
+          </div>
+          <button class="primary rounded" data-acao="novo-cartao">+ Novo cartão</button>
+        </div>
+        <div class="cartoes-lista" id="cartoesLista"></div>
+      </div>
+    </section>
+
+    <!-- ============ RENDA E CONTA ============ -->
+    <section class="view hidden" id="view-renda">
+      <div class="ajustes">
+        <form class="card form" id="rendaForm">
+          <h2 class="view-title" id="rendaTitulo">Sua renda</h2>
+          <small class="muted">Esses valores alimentam o saldo previsto<span class="campo-casal"> e a divisão da casa</span>.</small>
+          <span class="lbl-form">Tipo de conta</span>
+          <div class="modo-cards" id="rendaModo">
+            <button type="button" data-conta="individual"><b>👤 Individual</b><small>Só as suas finanças</small></button>
+            <button type="button" data-conta="casal"><b>👥 Em casal</b><small>Divide as contas da casa</small></button>
+          </div>
+          <input type="hidden" name="modo">
+          <div class="row2 fill-solo">
+            <label>Seu nome<input name="nome" maxlength="30" placeholder="Ex.: João"></label>
+            <label class="campo-casal">Nome do(a) parceiro(a)<input name="parceiro" maxlength="30" placeholder="Ex.: Maria"></label>
+          </div>
+          <div class="row2 fill-solo">
+            <label>Seu salário líquido (R$)<input name="salario" type="number" step="0.01" min="0"></label>
+            <label class="campo-casal">Salário do(a) parceiro(a) (R$)<input name="salarioParceiro" type="number" step="0.01" min="0"></label>
+          </div>
+          <label>Gasto do dia a dia no mês (R$)<input name="diaADia" type="number" step="0.01" min="0">
+            <small class="muted">mercado, transporte, lanches… o que não é conta fixa</small>
+          </label>
+          <label>Avisar com quantos dias de antecedência
+            <select name="diasAviso">
+              <option value="1">1 dia antes</option>
+              <option value="2">2 dias antes</option>
+              <option value="3">3 dias antes</option>
+              <option value="5">5 dias antes</option>
+              <option value="7">7 dias antes</option>
+            </select>
+          </label>
+          <div class="form-foot"><span class="ok-msg" id="rendaOk"></span><button class="primary rounded">Salvar</button></div>
+        </form>
+
+        <div class="col">
+          <div class="card form">
+            <h2 class="view-title">Avisos no aparelho</h2>
+            <small class="muted">Além do sino, o Em Dia pode mostrar uma notificação no computador ou no celular quando uma conta estiver perto de vencer. Ela aparece ao abrir o Em Dia e enquanto ele estiver aberto. Ative em cada aparelho.</small>
+            <p id="notifStatus"></p>
+            <button type="button" class="outline left" data-acao="ativar-avisos" id="notifBtn">Ativar avisos</button>
+          </div>
+
+          <form class="card form" id="senhaForm">
+            <h2 class="view-title">Sua conta</h2>
+            <small class="muted">Usuário: <b id="contaUsuario"></b></small>
+            <input type="text" name="username" autocomplete="username" class="hidden" id="senhaUser">
+            <label>Senha atual<input name="atual" type="password" autocomplete="current-password" required></label>
+            <label>Nova senha<input name="nova" type="password" autocomplete="new-password" required minlength="6"></label>
+            <p class="erro" id="senhaErro"></p>
+            <div class="form-foot"><span class="ok-msg" id="senhaOk"></span><button class="primary rounded">Trocar senha</button></div>
+          </form>
+
+          <div class="card form so-celular-flex">
+            <h2 class="view-title">Aparência e sessão</h2>
+            <div class="theme-row">
+              <span>☼ Tema</span>
+              <div class="theme-toggle">
+                <button type="button" data-theme-btn="light" title="Claro">☀</button>
+                <button type="button" data-theme-btn="dark" title="Escuro">☾</button>
+              </div>
+            </div>
+            <button type="button" class="outline left" data-acao="sair">⏻ Sair da conta</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ================= MODAL ================= -->
+<div id="modal" class="modal hidden">
+  <div class="modal-card card">
+    <div class="modal-head">
+      <h2 id="modalTitulo"></h2>
+      <button class="ghost" data-fechar title="Fechar">×</button>
+    </div>
+    <form id="modalForm" class="form"></form>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "em-dia",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Em Dia — finanças pessoais ou em casal, com alertas de vencimento",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "importar": "node importar.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
+}

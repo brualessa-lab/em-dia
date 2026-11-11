@@ -1,0 +1,16 @@
+# Configuração do Render (https://render.com) — plano gratuito
+services:
+  - type: web
+    name: em-dia
+    runtime: node
+    plan: free
+    buildCommand: npm install --omit=dev
+    startCommand: node server.js
+    healthCheckPath: /api/saude
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL      # cole a "connection string" do Neon
+        sync: false
+      - key: CODIGO_CONVITE    # invente um código; só quem souber cria conta
+        sync: false

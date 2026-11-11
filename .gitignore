@@ -1,0 +1,6 @@
+# seus dados, senhas (hash) e a chave do login — nunca vão para o GitHub
+dados/
+
+node_modules/
+.env
+*.tmp
